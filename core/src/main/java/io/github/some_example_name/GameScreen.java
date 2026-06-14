@@ -3,6 +3,7 @@ package io.github.some_example_name;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -10,17 +11,20 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
-import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
-import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.utils.Array; //Permite display de fonte na tela (descobrir posição do jogador)
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer; //Permite display de fonte na tela (descobrir posição do jogador)
+import com.badlogic.gdx.math.Rectangle; //imports para visualizar a hitbox de colisões (testes)
+import com.badlogic.gdx.utils.Array;
 
 public class GameScreen implements Screen {
+
+    private ShapeRenderer shapes; //Desenha formas
 
     // ── Câmera e renderização ─────────────────────────────────
     private OrthographicCamera camera;
@@ -57,7 +61,7 @@ public class GameScreen implements Screen {
 
     // ── Posição e velocidade ──────────────────────────────────
     private float playerX, playerY;
-    private static final float VELOCIDADE = 100f;
+    private static final float VELOCIDADE = 70f;
     private float mapWidth, mapHeight;
 
     // ── Controle de animação ──────────────────────────────────
@@ -73,6 +77,7 @@ public class GameScreen implements Screen {
         camera.setToOrtho(false, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
         batch = new SpriteBatch();
+        shapes = new ShapeRenderer(); //Inicializa o Shape Renderer
 
         //Inicializa fonte para exibir a posição do jogador na tela
         font = new BitmapFont();
@@ -86,8 +91,8 @@ public class GameScreen implements Screen {
         mapWidth  = camada.getWidth()  * camada.getTileWidth();
         mapHeight = camada.getHeight() * camada.getTileHeight();
 
-        // ── Carrega retângulos de colisão da camada "Collisions" ──
-        carregarColisoes();
+        
+        criarColisoesManuais(); //Cria colisões manuais, sem usar o tiled
 
         // ── Spritesheets ──
         sheetDown  = new Texture("Walk_Down.png");
@@ -130,6 +135,36 @@ public class GameScreen implements Screen {
         Gdx.app.log("Colisoes", "Total de colisoes carregadas: " + colisoes.size);
     }
 
+     private void criarColisoesManuais() {
+
+        // Cercas ao redor da casa
+        colisoes.add(new Rectangle(588f, 107f, 118f, 8f));   // inferior esquerda
+        colisoes.add(new Rectangle(584f, 104f, 7f,   137f)); // esquerda (vertical)
+        colisoes.add(new Rectangle(584f, 233f, 204f, 8f));   // superior
+        colisoes.add(new Rectangle(787f, 113f, 6f,   120f)); // direita (vertical)
+        colisoes.add(new Rectangle(733f, 105f, 58f,  8f));   // inferior direita
+
+        colisoes.add(new Rectangle(620f, 160f, 130f, 70f)); //Casa
+
+        //Bordas Inferiores
+        colisoes.add(new Rectangle(383.5f, 0.0f, 226.5f, 16.0f));
+        colisoes.add(new Rectangle(608.0f, 0.0f, 287.0f, 16.0f));
+        colisoes.add(new Rectangle(895.5f, 0.0f, 129.0f, 16.0f));
+
+        // Borda da Direita
+        colisoes.add(new Rectangle(1008.5f, 16.0f, 14.5f, 307.0f));
+
+        // Borda superior
+        colisoes.add(new Rectangle(777.5f, 320.5f, 245.5f, 16.0f));
+        colisoes.add(new Rectangle(437.0f, 320.5f, 340.0f, 16.0f));
+        colisoes.add(new Rectangle(368.0f, 320.0f, 67.5f, 15.5f));
+
+        // Borda da Esquerda
+        colisoes.add(new Rectangle(368.0f, 180.5f, 15.5f, 140.0f));
+        colisoes.add(new Rectangle(367.5f, 176.5f, 16.0f, 3.5f));
+        colisoes.add(new Rectangle(367.0f, 0.0f, 16.5f, 176.0f));
+    }
+    
     private Animation<TextureRegion> criarAnimacao(Texture sheet) {
         TextureRegion[][] tmp    = TextureRegion.split(sheet, FRAME_WIDTH, FRAME_HEIGHT);
         TextureRegion[]   frames = tmp[0];
@@ -227,6 +262,17 @@ public class GameScreen implements Screen {
             // Exibe a posição do jogador para testes
             font.draw(batch, "X:" + (int)playerX + " Y:" + (int)playerY, playerX - 40, playerY + 30);
         batch.end();
+
+        shapes.setProjectionMatrix(camera.combined);
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(Color.RED);
+        // Desenha hitbox do jogador
+        for (Rectangle obstaculo : colisoes) {
+            shapes.rect(obstaculo.x, obstaculo.y, obstaculo.width, obstaculo.height);
+        }
+        shapes.setColor(Color.LIME);
+        shapes.rect(hitboxPlayer.x, hitboxPlayer.y, hitboxPlayer.width, hitboxPlayer.height);
+        shapes.end();
     }
 
     @Override
@@ -243,6 +289,7 @@ public class GameScreen implements Screen {
         sheetUp.dispose();
         sheetLeft.dispose();
         sheetRight.dispose();
+        shapes.dispose(); //Libera recursos do ShapeRenderer
     }
 
     @Override public void pause()  {}
